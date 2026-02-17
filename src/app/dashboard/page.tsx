@@ -1,5 +1,5 @@
 "use client";
-
+import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
@@ -55,6 +55,7 @@ const WIZARD_STEPS = [
 
 export default function Dashboard() {
   const router = useRouter();
+  const { userId } = useAuth(); // <--- FIXED: Added userId retrieval
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -106,7 +107,8 @@ export default function Dashboard() {
 
     try {
       // 2. CREATE DATABASE ENTRY
-      const newChatId = await createChat(`${answers.type} Project`) || Date.now(); 
+      // <--- FIXED: Passed userId! as first argument
+      const newChatId = await createChat(userId!, `${answers.type} Project`) || Date.now(); 
 
       // 3. REDIRECT TO EDITOR (Editor will read URL and start AI)
       router.push(`/editor/${newChatId}?initialPrompt=${encodeURIComponent(finalPrompt)}`);
@@ -133,7 +135,8 @@ export default function Dashboard() {
         {/* 1. Blank Project */}
         <div 
             onClick={async () => {
-                const id = await createChat("Untitled Project");
+                // <--- FIXED: Passed userId! as first argument
+                const id = await createChat(userId!, "Untitled Project");
                 router.push(`/editor/${id}`);
             }}
             className="group relative bg-white p-10 rounded-3xl shadow-sm border border-slate-200 hover:border-blue-400 hover:shadow-xl transition-all cursor-pointer flex flex-col items-center text-center gap-4"

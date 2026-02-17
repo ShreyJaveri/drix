@@ -212,7 +212,7 @@ export async function generateTemplateOptions(topic: string): Promise<GeneratedT
   const genAI = new GoogleGenerativeAI(apiKey || "");
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-  let validResults: GeneratedTemplate[] = [];
+  const validResults: GeneratedTemplate[] = [];
 
   // Attempt AI Generation (Only if Key exists)
   if (apiKey) {
