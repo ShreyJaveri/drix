@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,8 @@ interface ProjectFile {
 // 🎨 Pre-generated Google Fonts URL
 const ALL_FONTS_URL = "https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Bangers&family=Caveat&family=Cinzel&family=Dancing+Script&family=Fredoka+One&family=Inter:wght@300;400;600;700&family=Lato:wght@300;400;700&family=Lobster&family=Merriweather:wght@300;400;700&family=Montserrat:wght@300;400;600;700&family=Nunito:wght@300;400;700&family=Open+Sans:wght@300;400;600;700&family=Oswald:wght@300;400;700&family=Pacifico&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Poppins:wght@300;400;600;700&family=Prata&family=Raleway:wght@300;400;700&family=Righteous&family=Roboto:wght@300;400;500;700&family=Shadows+Into+Light&family=Space+Grotesk:wght@300;400;700&family=Space+Mono&family=Syne:wght@400;700&family=Ubuntu:wght@300;400;700&family=VT323&display=swap";
 
-export default function EditorPage() {
+// 1. Remove "export default" from here
+function EditorContent() {
   const searchParams = useSearchParams();
   const chatId = searchParams.get("chatId") ? parseInt(searchParams.get("chatId")!) : null;
 
@@ -413,6 +414,14 @@ export default function EditorPage() {
   // --- EFFECTS ---
   useEffect(() => { if (chatId) loadProjectData(); }, [chatId]);
   
+  // ✅ NEW: RELIABLY CAPTURE THE URL PROMPT
+  useEffect(() => {
+      const urlPrompt = searchParams.get("prompt");
+      if (urlPrompt) {
+          setPrompt(urlPrompt);
+      }
+  }, [searchParams]);
+
   useEffect(() => { 
       if (files.length > 0 && view === 'preview') {
           setIframeSource(generatePreviewHtml(activeFile, files)); 
@@ -714,5 +723,18 @@ export default function EditorPage() {
          </div>
       </div>
     </div>
+  );
+}
+
+// 2. NEW: Export the component wrapped in Suspense!
+export default function EditorPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50 text-slate-500 font-mono">
+        Initializing Workspace...
+      </div>
+    }>
+      <EditorContent />
+    </Suspense>
   );
 }

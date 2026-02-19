@@ -15,9 +15,10 @@ import { Button } from "@/components/ui/button";
 import { createChat } from "@/app/actions";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 
-export function AppSidebar() {
+// 1. Rename the inner component
+function SidebarContent() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -25,16 +26,13 @@ export function AppSidebar() {
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
 
-  // Get current tab from URL
   const currentTab = searchParams.get("tab");
 
-  // ✅ Client-Side Project Creation
   const handleCreateNew = async () => {
     if (!userId) return;
     setLoading(true);
     try {
       const chat = await createChat(userId, "Untitled Project");
-      // ✅ FIXED BUG: Added ?chatId= param to match the editor's requirement
       router.push(`/editor/${chat.id}?chatId=${chat.id}`);
     } catch (err) {
       console.error(err);
@@ -52,7 +50,6 @@ export function AppSidebar() {
 
   return (
     <div className="h-full w-64 flex flex-col justify-between p-4 text-white">
-      
       {/* 1. BRAND HEADER */}
       <div className="mb-8 px-2 flex items-center gap-2">
         <div className="h-8 w-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.5)]">
@@ -63,8 +60,6 @@ export function AppSidebar() {
 
       {/* 2. MAIN ACTIONS */}
       <div className="space-y-6 flex-1">
-        
-        {/* CREATE BUTTON */}
         <Button 
             onClick={handleCreateNew} 
             disabled={loading}
@@ -74,7 +69,6 @@ export function AppSidebar() {
            {loading ? "Initializing..." : "New Project"}
         </Button>
 
-        {/* NAVIGATION LINKS */}
         <div className="space-y-1">
             {menuItems.map((item) => {
                 const isDashboard = item.href === "/dashboard" && pathname === "/dashboard" && !currentTab;
@@ -97,8 +91,6 @@ export function AppSidebar() {
                                 {item.icon}
                             </span>
                             {item.label}
-                            
-                            {/* Hover Glow */}
                             {isActive && (
                                 <div className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_5px_#a855f7]" />
                             )}
@@ -109,7 +101,7 @@ export function AppSidebar() {
         </div>
       </div>
 
-      {/* 3. FOOTER / USER MINI-PROFILE */}
+      {/* 3. FOOTER */}
       <div className="mt-auto pt-6 border-t border-white/10">
          <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center gap-3">
              <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center text-xs font-bold">
@@ -123,5 +115,14 @@ export function AppSidebar() {
          </div>
       </div>
     </div>
+  );
+}
+
+// 2. Export the component wrapped in Suspense!
+export function AppSidebar() {
+  return (
+    <Suspense fallback={<div className="h-full w-64 p-4 text-slate-500 flex items-center justify-center">Loading Menu...</div>}>
+      <SidebarContent />
+    </Suspense>
   );
 }

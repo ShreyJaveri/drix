@@ -9,18 +9,15 @@ import {
   PopoverContent, 
   PopoverTrigger 
 } from "@/components/ui/popover";
-import { useDebouncedCallback } from "use-debounce"; // Optional, but good for perf. Or just simple timeout.
+import { Suspense } from "react";
+// import { useDebouncedCallback } from "use-debounce"; // Keep this commented if you aren't using it yet
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {    
+// 1. We extract the Search Bar logic into its own component
+function TopSearchBar() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { replace } = useRouter();
 
-  // 1. SEARCH LOGIC (Syncs input to URL ?search=param)
   const handleSearch = (term: string) => {
     const params = new URLSearchParams(searchParams);
     if (term) {
@@ -31,6 +28,28 @@ export default function DashboardLayout({
     replace(`${pathname}?${params.toString()}`);
   };
 
+  return (
+    <div className="relative group">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <Search className="h-4 w-4 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+      </div>
+      <input 
+        type="text" 
+        placeholder="Search_Projects..." 
+        onChange={(e) => handleSearch(e.target.value)}
+        defaultValue={searchParams.get('search')?.toString() || ""}
+        className="bg-white/5 border border-white/10 text-sm rounded-full pl-10 pr-4 py-2 w-64 focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:bg-white/10 transition-all text-slate-300 placeholder:text-slate-600 font-mono"
+      />
+    </div>
+  );
+}
+
+// 2. The main Layout component
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {    
   return (
     <div className="flex h-screen overflow-hidden bg-[#050505] text-white font-sans selection:bg-purple-500/30">
       
@@ -51,19 +70,12 @@ export default function DashboardLayout({
         {/* HEADER HUD */}
         <header className="flex h-16 items-center justify-between px-8 border-b border-white/5 bg-black/20 backdrop-blur-md">
           
-          {/* FUNCTIONAL SEARCH BAR */}
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
-            </div>
-            <input 
-              type="text" 
-              placeholder="Search_Projects..." 
-              onChange={(e) => handleSearch(e.target.value)}
-              defaultValue={searchParams.get('search')?.toString()}
-              className="bg-white/5 border border-white/10 text-sm rounded-full pl-10 pr-4 py-2 w-64 focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:bg-white/10 transition-all text-slate-300 placeholder:text-slate-600 font-mono"
-            />
-          </div>
+          {/* 3. Render the Search Bar wrapped in Suspense */}
+          <Suspense fallback={
+            <div className="w-64 h-9 bg-white/5 rounded-full border border-white/10 animate-pulse" />
+          }>
+             <TopSearchBar />
+          </Suspense>
 
           <div className="flex items-center gap-6">
             
