@@ -8,7 +8,9 @@ interface ProjectFile {
 }
 
 // Fallback models
-const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+const MODELS = ["gemini-3-flash-preview",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash"] ;
 
 export async function POST(req: Request) {
   try {

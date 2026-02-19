@@ -1,203 +1,174 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
-import { 
-  Plus, Layout, Loader2, Star, Trash2, Folder, 
-  MoreHorizontal, RotateCcw, Pencil, Search 
-} from "lucide-react";
-import { 
-  createChat, getUserChats, moveToTrash, 
-  toggleChatStar, renameChat, restoreFromTrash, permanentDeleteChat 
-} from "@/app/actions";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import { TemplateWizard } from "@/components/template-wizard"; // ✅ Import the Wizard
+import Link from "next/link";
+import { useAuth, UserButton } from "@clerk/nextjs";
+import { motion } from "framer-motion";
+import { ArrowRight, ShieldCheck, Zap, Layers, Play, Cpu, Code } from "lucide-react";
+import { ThreeScene } from "@/components/ThreeScene"; 
+import { CustomCursor, BorderBeamCard } from "@/components/InsaneUI"; // ✅ Import new UI
 
-interface Project {
-  id: number;
-  title: string;
-  createdAt: Date;
-  isStarred: boolean;
-  isDeleted: boolean;
-  previewHtml?: string;
-}
-
-export default function DashboardHome() {
-  const { userId, isLoaded } = useAuth();
-  const router = useRouter();
-  
-  // State
-  const [activeSection, setActiveSection] = useState<"all" | "templates" | "starred" | "trash">("all");
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Fetch Projects
-  useEffect(() => {
-    if (userId && activeSection !== 'templates') {
-      setLoading(true);
-      getUserChats(userId, activeSection as "all" | "starred" | "trash").then((data) => {
-        setProjects(data as unknown as Project[]);
-        setLoading(false);
-      });
-    } else {
-        setLoading(false);
-    }
-  }, [userId, activeSection]);
-
-  // Actions
-  const handleCreate = async (title: string, html: string) => {
-    if (!userId) return;
-    const newChat = await createChat(userId, title, html);
-    if (newChat) router.push(`/editor/${newChat.id}?chatId=${newChat.id}`);
-  };
-
-  const handleRename = async (id: number) => {
-    const newName = prompt("Enter new project name:");
-    if (newName) {
-        setProjects(prev => prev.map(p => p.id === id ? { ...p, title: newName } : p));
-        await renameChat(id, newName);
-    }
-  };
-
-  const handleStar = async (e: React.MouseEvent, p: Project) => {
-    e.stopPropagation();
-    setProjects(prev => activeSection === 'starred' 
-        ? prev.filter(proj => proj.id !== p.id) 
-        : prev.map(proj => proj.id === p.id ? { ...proj, isStarred: !proj.isStarred } : proj)
-    );
-    await toggleChatStar(p.id, p.isStarred);
-  };
-
-  const handleSoftDelete = async (e: React.MouseEvent, id: number) => {
-    e.stopPropagation();
-    if(!confirm("Move to Trash?")) return;
-    setProjects(prev => prev.filter(p => p.id !== id));
-    await moveToTrash(id);
-  };
-
-  const handleRestore = async (e: React.MouseEvent, id: number) => {
-    e.stopPropagation();
-    setProjects(prev => prev.filter(p => p.id !== id));
-    await restoreFromTrash(id);
-  };
-
-  const handlePermanentDelete = async (e: React.MouseEvent, id: number) => {
-    e.stopPropagation();
-    if(!confirm("Permanently delete?")) return;
-    setProjects(prev => prev.filter(p => p.id !== id));
-    await permanentDeleteChat(id);
-  };
-
-
-  if (!isLoaded) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
+export default function LandingPage() {
+  const { userId } = useAuth();
 
   return (
-    <div className="flex h-screen bg-slate-50 font-sans text-slate-900">
+    <div className="relative min-h-screen w-full bg-[#050505] text-white overflow-x-hidden font-sans cursor-none selection:bg-purple-500/30">
       
-      {/* SIDEBAR */}
-      <aside className="w-64 bg-white border-r flex flex-col shrink-0">
-        <div className="p-6">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">Aura Builder</h1>
-            <p className="text-xs text-slate-400">v2.0 Infinite</p>
-        </div>
-        <nav className="flex-1 px-4 space-y-1">
-            <SidebarBtn icon={<Folder className="w-4 h-4"/>} label="All Projects" active={activeSection === 'all'} onClick={() => setActiveSection('all')} />
-            <SidebarBtn icon={<Layout className="w-4 h-4"/>} label="New Template" active={activeSection === 'templates'} onClick={() => setActiveSection('templates')} />
-            <SidebarBtn icon={<Star className="w-4 h-4"/>} label="Starred" active={activeSection === 'starred'} onClick={() => setActiveSection('starred')} />
-            <div className="pt-4 mt-4 border-t border-slate-100">
-                <SidebarBtn icon={<Trash2 className="w-4 h-4"/>} label="Trash Bin" active={activeSection === 'trash'} onClick={() => setActiveSection('trash')} />
+      {/* 1. CUSTOM CURSOR & 3D BG */}
+      <CustomCursor />
+      <ThreeScene />
+
+      {/* 2. OVERLAY */}
+      <div className="fixed inset-0 z-0 pointer-events-none bg-radial-gradient from-transparent to-black/90" />
+
+      {/* 3. NAVBAR */}
+      <nav className="fixed top-0 w-full z-50 border-b border-white/5 bg-black/5 backdrop-blur-sm transition-all duration-300 hover:bg-black/20">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-2 group cursor-pointer">
+            <div className="w-8 h-8 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/20 group-hover:rotate-12 transition-transform">
+              <Zap className="w-4 h-4 text-white fill-white" />
             </div>
-        </nav>
-        <div className="p-4 border-t bg-slate-50/50">
-            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => handleCreate("New Project", "<div>Start Blank</div>")}>
-                <Plus className="mr-2 h-4 w-4" /> Blank Project
-            </Button>
+            <span className="font-bold text-lg tracking-tight group-hover:text-purple-300 transition-colors">AuraBuilder</span>
+          </div>
+
+          <div className="flex gap-6 items-center">
+            {userId ? (
+               <div className="flex gap-4 items-center">
+                 <Link href="/dashboard" className="text-sm font-medium text-slate-300 hover:text-white transition cursor-none">Workspace</Link>
+                 <div className="cursor-none"><UserButton afterSignOutUrl="/" /></div>
+               </div>
+            ) : (
+               <div className="flex gap-4 items-center">
+                 <Link href="/sign-in" className="text-sm font-medium text-slate-300 hover:text-white transition cursor-none">Log In</Link>
+                 <Link href="/sign-up">
+                   <button className="px-5 py-2 bg-white text-black text-sm font-bold rounded-full hover:bg-purple-50 transition shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:scale-105 active:scale-95 cursor-none">
+                     Get Started
+                   </button>
+                 </Link>
+               </div>
+            )}
+          </div>
         </div>
-      </aside>
+      </nav>
 
-      {/* MAIN CONTENT */}
-      <main className="flex-1 overflow-y-auto p-8">
-        
-        {/* --- VIEW: NEW AI TEMPLATE WIZARD --- */}
-        {activeSection === 'templates' && (
-             <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[600px]">
-                {/* ✅ We render the separate Wizard component here */}
-                <TemplateWizard />
-             </div>
-        )}
+      {/* 4. HERO */}
+      <section className="relative z-10 flex flex-col items-center justify-center min-h-[90vh] px-6 text-center">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="mb-8"
+        >
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-xl text-xs font-medium text-purple-200 shadow-xl hover:bg-white/10 transition-colors cursor-none">
+             <span className="relative flex h-2 w-2">
+               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+               <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+             </span>
+             v2.0 Architecture Online
+          </div>
+        </motion.div>
 
-        {/* --- VIEW: PROJECT LISTS --- */}
-        {activeSection !== 'templates' && (
-            <div>
-                 <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-2xl font-bold capitalize">{activeSection}</h2>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input placeholder="Search saved projects..." className="pl-9 w-64 bg-white" />
-                    </div>
-                </div>
+        <motion.h1 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="text-6xl md:text-8xl font-black tracking-tighter mb-8 bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 drop-shadow-2xl"
+        >
+           Code at the <br />
+           speed of <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 animate-pulse">Thought.</span>
+        </motion.h1>
 
-                {loading ? (
-                    <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-blue-500"/></div>
-                ) : projects.length === 0 ? (
-                    <div className="text-center py-20 border-2 border-dashed rounded-xl">
-                        <p className="text-slate-400">No projects found in {activeSection}.</p>
+        <motion.p 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="max-w-xl mx-auto text-slate-400 text-lg md:text-xl leading-relaxed mb-10"
+        >
+           The first reliability-focused AI builder. Generate semantic, type-safe Next.js code that actually works in production.
+        </motion.p>
+
+        <motion.div 
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ duration: 0.8, delay: 0.6 }}
+           className="flex flex-col sm:flex-row gap-4 items-center"
+        >
+           <Link href={userId ? "/dashboard" : "/sign-up"}>
+              <button className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full font-bold text-lg shadow-[0_10px_40px_-10px_rgba(124,58,237,0.5)] hover:shadow-[0_20px_40px_-10px_rgba(124,58,237,0.7)] transition-all transform hover:-translate-y-1 hover:scale-105 active:scale-95 cursor-none">
+                 <span className="flex items-center gap-2">
+                    Start Building Free <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                 </span>
+              </button>
+           </Link>
+           <button className="px-8 py-4 bg-white/5 border border-white/10 rounded-full font-medium text-lg hover:bg-white/10 backdrop-blur-md transition flex items-center gap-2 hover:border-white/30 cursor-none">
+              <Play className="w-4 h-4 fill-white" /> Watch Demo
+           </button>
+        </motion.div>
+      </section>
+
+      {/* 5. INSANE CARDS SECTION */}
+      <section className="relative z-10 py-32 px-6">
+         <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                
+                {/* CARD 1 */}
+                <BorderBeamCard className="h-full">
+                    <div className="h-12 w-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-6 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                        <Cpu className="text-emerald-400 w-6 h-6" />
                     </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {projects.map((p) => (
-                            <div key={p.id} className="group relative bg-white rounded-xl border hover:shadow-xl transition-all duration-300 flex flex-col h-[280px] overflow-hidden">
-                                <div onClick={() => activeSection !== 'trash' && router.push(`/editor/${p.id}?chatId=${p.id}`)} className="flex-1 bg-slate-100 relative overflow-hidden cursor-pointer">
-                                    <div className="w-[400%] h-[400%] transform scale-25 origin-top-left pointer-events-none select-none absolute inset-0 bg-white">
-                                        <iframe srcDoc={p.previewHtml || ""} className="w-full h-full border-none" tabIndex={-1} />
-                                    </div>
-                                    <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors" />
-                                </div>
-                                <div className="p-4 bg-white border-t relative">
-                                    <div className="flex justify-between items-start">
-                                        <div className="w-full">
-                                            <h3 className="font-semibold text-slate-900 truncate pr-6" title={p.title}>{p.title}</h3>
-                                            <p className="text-xs text-slate-500 mt-1">Edited {new Date(p.createdAt).toLocaleDateString()}</p>
-                                        </div>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild><Button variant="ghost" className="h-6 w-6 p-0 -mr-2"><MoreHorizontal className="h-4 w-4 text-slate-400" /></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                {activeSection === 'trash' ? (
-                                                    <>
-                                                        <DropdownMenuItem onClick={(e) => handleRestore(e, p.id)}><RotateCcw className="mr-2 h-4 w-4"/> Restore</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={(e) => handlePermanentDelete(e, p.id)} className="text-red-600"><Trash2 className="mr-2 h-4 w-4"/> Delete Forever</DropdownMenuItem>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <DropdownMenuItem onClick={() => handleRename(p.id)}><Pencil className="mr-2 h-4 w-4"/> Rename</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={(e) => handleStar(e, p)}><Star className={`mr-2 h-4 w-4 ${p.isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`}/> {p.isStarred ? 'Unstar' : 'Star'}</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={(e) => handleSoftDelete(e, p.id)} className="text-red-600"><Trash2 className="mr-2 h-4 w-4"/> Move to Trash</DropdownMenuItem>
-                                                    </>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                    <h3 className="text-2xl font-bold mb-3 text-white">Production Core</h3>
+                    <p className="text-slate-400 leading-relaxed">
+                        Outputs clean, semantic HTML5 & Tailwind. No black-box 'AI spaghetti' code. 
+                        Your code is optimized for Vercel Edge Networks.
+                    </p>
+                </BorderBeamCard>
+
+                {/* CARD 2 */}
+                <BorderBeamCard className="h-full">
+                     <div className="h-12 w-12 rounded-full bg-blue-500/20 flex items-center justify-center mb-6 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                        <Layers className="text-blue-400 w-6 h-6" />
                     </div>
-                )}
+                    <h3 className="text-2xl font-bold mb-3 text-white">Visual Control</h3>
+                    <p className="text-slate-400 leading-relaxed">
+                        Manipulate the DOM visually while retaining full code access. 
+                        It's like Figma and VS Code had a baby.
+                    </p>
+                </BorderBeamCard>
+
+                {/* CARD 3 */}
+                <BorderBeamCard className="h-full">
+                     <div className="h-12 w-12 rounded-full bg-purple-500/20 flex items-center justify-center mb-6 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                        <Code className="text-purple-400 w-6 h-6" />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-3 text-white">Zero Lock-in</h3>
+                    <p className="text-slate-400 leading-relaxed">
+                        Export your project as a standard Next.js app or static HTML. 
+                        You own the code, forever.
+                    </p>
+                </BorderBeamCard>
+
             </div>
-        )}
-      </main>
+         </div>
+      </section>
+
+      {/* 6. TAILWIND ANIMATION CONFIG (Add to globals.css if needed, but inline works too) */}
+      <style jsx global>{`
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 10s linear infinite;
+        }
+        @keyframes meteor {
+          0% { transform: rotate(215deg) translateX(0); opacity: 1; }
+          70% { opacity: 1; }
+          100% { transform: rotate(215deg) translateX(-500px); opacity: 0; }
+        }
+        .animate-meteor-effect {
+          animation: meteor 5s linear infinite;
+        }
+      `}</style>
+
     </div>
   );
-}
-
-function SidebarBtn({ icon, label, active, onClick }: any) {
-    return (
-        <button onClick={onClick} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100"}`}>
-            {icon} {label}
-        </button>
-    )
 }

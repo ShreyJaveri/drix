@@ -100,6 +100,31 @@ export async function getProjectFiles(chatId: number) {
   return await db.select().from(files).where(and(eq(files.chatId, chatId), eq(files.type, 'html')));
 }
 
+export async function getChatFiles(chatId: string | number) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  // Ensure chatId is an integer
+  const numericChatId = typeof chatId === "string" ? parseInt(chatId, 10) : chatId;
+
+  try {
+    // Fetch all files that belong to this specific chat/project
+    const projectFiles = await db
+      .select({
+        id: files.id,
+        name: files.name,
+        type: files.type,
+      })
+      .from(files)
+      .where(eq(files.chatId, numericChatId));
+
+    return projectFiles;
+  } catch (error) {
+    console.error("Failed to fetch chat files:", error);
+    return [];
+  }
+}
+
 export async function saveFile(chatId: number, fileName: string, content: string, type: string) {
   const existing = await db.select().from(files).where(and(eq(files.chatId, chatId), eq(files.name, fileName)));
   
@@ -210,11 +235,10 @@ const LIBRARY = [
 export async function generateTemplateOptions(topic: string): Promise<GeneratedTemplate[]> {
   const apiKey = process.env.GEMINI_API_KEY;
   const genAI = new GoogleGenerativeAI(apiKey || "");
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // Maintained as you had it
 
   const validResults: GeneratedTemplate[] = [];
 
-  // Attempt AI Generation (Only if Key exists)
   if (apiKey) {
     try {
       const prompt = `Create a website template for "${topic}". Return RAW HTML only. Do not use Markdown code blocks. Use Tailwind CSS. Structure: Navbar, Hero, Features.`;
@@ -237,7 +261,6 @@ export async function generateTemplateOptions(topic: string): Promise<GeneratedT
     }
   }
 
-  // Smart Matching Logic
   const lowerTopic = topic.toLowerCase().trim();
   let match = LIBRARY.find(t => t.keywords.some(k => lowerTopic.includes(k)));
   
@@ -282,7 +305,7 @@ export async function generateProjectQuestions(topic: string): Promise<WizardQue
   if (!apiKey) throw new Error("No API Key");
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `
     You are an expert web consultant. A client wants to build a website about: "${topic}".
@@ -300,7 +323,6 @@ export async function generateProjectQuestions(topic: string): Promise<WizardQue
     return JSON.parse(text);
   } catch (e) {
     console.error("Failed to generate questions:", e);
-    // Fallback questions if AI fails
     return [
       { id: 1, question: "What is the main purpose of the site?", options: ["Business", "Personal", "Portfolio", "Blog"] },
       { id: 2, question: "What is your preferred color scheme?", options: ["Light & Airy", "Dark & Modern", "Colorful", "Monochrome"] },
@@ -318,7 +340,6 @@ export async function createProjectFromAnswers(topic: string, qaPairs: { questio
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
-  // Compile the answers into a master prompt for the AI
   let masterPrompt = `I need you to build a complete website for "${topic}".\n\nHere are the detailed requirements based on a client interview:\n`;
   
   qaPairs.forEach((qa, index) => {
@@ -327,13 +348,174 @@ export async function createProjectFromAnswers(topic: string, qaPairs: { questio
 
   masterPrompt += "\nPlease generate the full HTML structure using Tailwind CSS based on these requirements. Return only the raw HTML.";
 
-  // Create the new chat/project
-  // We pass 'undefined' for templateHtml because we want the AI to generate it fresh based on the prompt
   const chat = await createChat(userId, topic, undefined); 
-  
-  // Save the Master Prompt as the user's first message
-  // This ensures the AI has the context when the chat loads
   await saveMessage(chat.id, "user", masterPrompt);
 
   return { chatId: chat.id, prompt: masterPrompt };
+}
+
+// ==========================================================
+// 🧠 NEURAL CODE AUDIT (GENUINE AI ANALYSIS)
+// ==========================================================
+
+export async function getFileById(fileId: number) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  
+  const result = await db.select().from(files).where(eq(files.id, fileId)).limit(1);
+  return result[0];
+}
+
+export async function analyzeCodeWithAI(code: string, fileName: string) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("No Gemini API Key found in environment variables");
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  
+  const prompt = `
+    You are an elite, brutally honest Frontend Web Architect and Code Reviewer.
+    Analyze the following code from the file: "${fileName}".
+    Evaluate the HTML structure, Tailwind CSS utility usage, JavaScript logic, and React performance.
+
+    Return a strictly formatted JSON object matching this exact schema:
+    {
+      "score": <number 0-100 grading the overall code quality>,
+      "grade": "<string like A+, B, C-, D>",
+      "colors": {
+        "current": ["<hex1>", "<hex2>"],
+        "suggested": ["<better_hex1>", "<better_hex2>"],
+        "reason": "<Explain exactly why your suggested palette is better for accessibility or modern UI design>"
+      },
+      "health": [
+        {
+          "type": "<must be exactly one of: tailwind, performance, accessibility, content>",
+          "title": "<Short, punchy issue title>",
+          "text": "<Detailed explanation of the exact flaw you found and how to fix it>"
+        }
+      ],
+      "resources": [
+        {
+          "title": "<Name of resource>",
+          "type": "<Video, Doc, or Tool>",
+          "url": "<A REAL, valid URL to official documentation, a trusted tool, or a relevant YouTube search/video>"
+        }
+      ],
+      "code": {
+        "bad": "<Snippet of the exact BAD code found in the file>",
+        "good": "<Your rewritten, perfectly optimized, production-ready version of that snippet>"
+      }
+    }
+
+    Rules:
+    - Provide 3-4 health issues. Always look for redundant Tailwind classes, bad accessibility, and JS performance bottlenecks.
+    - Output ONLY valid JSON.
+
+    CODE TO ANALYZE:
+    \`\`\`
+    ${code}
+    \`\`\`
+  `;
+
+  // 🛡️ THE MULTI-MODEL FALLBACK ARRAY
+  const modelsToTry = [
+    "gemini-3-flash-preview",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash"
+  ];
+
+  let lastError: any = null;
+
+  for (const modelName of modelsToTry) {
+    try {
+      console.log(`[Neural Audit] Attempting with model: ${modelName}...`);
+      
+      const model = genAI.getGenerativeModel({ 
+        model: modelName,
+        generationConfig: { responseMimeType: "application/json" } 
+      });
+
+      const result = await model.generateContent(prompt);
+      
+      // Check if response was blocked by safety filters
+      if (!result.response.candidates || result.response.candidates.length === 0) {
+         throw new Error("AI response was blocked by safety filters or returned empty.");
+      }
+
+      let text = result.response.text();
+      
+      // ULTIMATE JSON EXTRACTOR
+      const startIndex = text.indexOf('{');
+      const endIndex = text.lastIndexOf('}');
+      
+      if (startIndex === -1 || endIndex === -1) {
+        throw new Error("AI response did not contain a valid JSON object.");
+      }
+      
+      const cleanJsonString = text.substring(startIndex, endIndex + 1);
+
+      console.log(`[Neural Audit] Success using ${modelName}!`);
+      return JSON.parse(cleanJsonString);
+      
+    } catch (error: any) {
+      console.error(`[Neural Audit] ❌ Model ${modelName} failed:`, error.message || error);
+      lastError = error;
+      // Loop continues to the next model...
+    }
+  }
+
+  // 🚨 IF WE REACH HERE, ALL 3 MODELS FAILED
+  console.error("=== 🚨 ALL AI MODELS FAILED 🚨 ===");
+  console.error(lastError);
+
+  // 🛡️ GRACEFUL UI FALLBACK: Instead of crashing the server, return a perfectly formatted error JSON 
+  // so the dashboard renders safely and tells the user exactly what broke!
+  return {
+    score: 0,
+    grade: "ERR",
+    colors: {
+      current: ["#FF0000", "#000000"],
+      suggested: ["#FF0000", "#000000"],
+      reason: "The AI Core failed to process this file. This usually happens due to API rate limits or unreadable file formatting."
+    },
+    health: [
+      {
+        type: "performance",
+        title: "Total System Failure",
+        text: `We attempted 3 different AI models, but all failed. Last error caught: ${lastError?.message || "Unknown Error"}. Check your terminal or API Key Quota.`
+      }
+    ],
+    resources: [
+      {
+        title: "Google AI Studio API Keys",
+        type: "Tool",
+        url: "https://aistudio.google.com/app/apikey"
+      }
+    ],
+    code: {
+      bad: "// 🚨 FATAL ERROR \n// The AI could not read this code.",
+      good: "// Check your API key limits or ensure the file isn't too massive."
+    }
+  };
+}
+
+// ✅ NEW: Server-Side Project File Audit (Bypasses Next.js Payload Limits)
+export async function auditProjectFile(fileId: number) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  // 1. Fetch the file securely on the server
+  const result = await db.select().from(files).where(eq(files.id, fileId)).limit(1);
+  const dbFile = result[0];
+
+  if (!dbFile) {
+    throw new Error("File not found in database.");
+  }
+
+  // 2. Prevent sending empty files to the AI (which causes crashes)
+  if (!dbFile.content || dbFile.content.trim() === "") {
+    throw new Error("This file is completely empty. Add some code before auditing.");
+  }
+
+  // 3. Pass it directly to your existing AI function
+  return await analyzeCodeWithAI(dbFile.content, dbFile.name);
 }

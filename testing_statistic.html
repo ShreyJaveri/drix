@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Card Generator</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gradient-to-br from-blue-500 to-purple-600 min-h-screen flex items-center justify-center">
+
+  <div class="bg-white p-8 rounded-2xl shadow-2xl w-[400px]">
+    <h1 class="text-2xl font-bold text-center mb-6">Card Generator</h1>
+
+    <input
+      id="userInput"
+      type="text"
+      placeholder="Type something..."
+      class="w-full border p-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+
+    <button
+      onclick="createCard()"
+      class="w-full bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-lg transition"
+    >
+      Create Card
+    </button>
+
+    <div id="cardContainer" class="mt-6 space-y-3"></div>
+  </div>
+
+  <script>
+    function createCard() {
+      const input = document.getElementById("userInput");
+      const container = document.getElementById("cardContainer");
+
+      if (input.value.trim() === "") return;
+
+      const card = document.createElement("div");
+      card.className =
+        "bg-gray-100 p-4 rounded-lg shadow flex justify-between items-center";
+
+      card.innerHTML = `
+        <span>${input.value}</span>
+        <button class="text-red-500 font-bold" onclick="this.parentElement.remove()">X</button>
+      `;
+
+      container.appendChild(card);
+      input.value = "";
+    }
+  </script>
+
+</body>
+</html>

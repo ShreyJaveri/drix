@@ -1,267 +1,390 @@
 "use client";
+
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { 
-  Plus, Wand2, ArrowRight, Sparkles, Loader2, X, 
-  Briefcase, ShoppingBag, User, Globe, CheckCircle2, 
-  LayoutTemplate, Palette, Layers
+  Plus, Layout, Loader2, Star, Trash2, 
+  Pencil, Clock, Copy, ArrowRight, RotateCcw
 } from "lucide-react";
+import { 
+  createChat, getUserChats, moveToTrash, 
+  toggleChatStar, renameChat, permanentDeleteChat, restoreFromTrash,
+  saveMessage 
+} from "@/app/actions";
 import { Button } from "@/components/ui/button";
-import { createChat } from "@/app/actions"; 
+import { TemplateWizard } from "@/components/template-wizard";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { TEMPLATES } from "@/lib/templates";
 
-// --- WIZARD CONFIGURATION ---
-const WIZARD_STEPS = [
-  {
-    id: "type",
-    title: "What are you building?",
-    subtitle: "Select the primary purpose of your website.",
-    multi: false,
-    options: [
-      { value: "Personal Portfolio", label: "Portfolio", icon: <User className="w-6 h-6"/>, desc: "Showcase work & resume." },
-      { value: "SaaS Landing Page", label: "SaaS Landing", icon: <Globe className="w-6 h-6"/>, desc: "High conversion product page." },
-      { value: "E-Commerce Store", label: "Online Store", icon: <ShoppingBag className="w-6 h-6"/>, desc: "Sell products directly." },
-      { value: "Corporate Business Site", label: "Business", icon: <Briefcase className="w-6 h-6"/>, desc: "Professional company profile." },
-    ]
-  },
-  {
-    id: "style",
-    title: "Choose a Design Style",
-    subtitle: "Define the look and feel.",
-    multi: false,
-    options: [
-      { value: "Minimalist", label: "Minimalist", icon: <LayoutTemplate className="w-6 h-6"/>, desc: "Clean, whitespace, simple type." },
-      { value: "Brutalist / Bold", label: "Brutalist", icon: <Layers className="w-6 h-6"/>, desc: "High contrast, sharp edges, loud." },
-      { value: "Professional Corporate", label: "Corporate", icon: <Briefcase className="w-6 h-6"/>, desc: "Trustworthy blue tones, structured." },
-      { value: "Playful & Vibrant", label: "Playful", icon: <Palette className="w-6 h-6"/>, desc: "Round shapes, fun colors." },
-    ]
-  },
-  {
-    id: "features",
-    title: "What sections do you need?",
-    subtitle: "Select all that apply.",
-    multi: true,
-    options: [
-      { value: "Hero Section", label: "Hero Header", desc: "Main title & CTA." },
-      { value: "Features Grid", label: "Features Grid", desc: "List key benefits." },
-      { value: "Testimonials", label: "Testimonials", desc: "Social proof slider." },
-      { value: "Pricing Table", label: "Pricing", desc: "Subscription cards." },
-      { value: "Contact Form", label: "Contact Form", desc: "Input fields & submit." },
-      { value: "FAQ Accordion", label: "FAQ", desc: "Expandable questions." },
-      { value: "Footer", label: "Footer", desc: "Links & copyright." },
-    ]
-  }
-];
+// --- TYPES ---
+interface Project {
+  id: number;
+  title: string;
+  createdAt: Date;
+  isStarred: boolean;
+  isDeleted: boolean;
+  previewHtml?: string;
+}
 
-export default function Dashboard() {
+// 1. Renamed to DashboardContent (removed export default)
+function DashboardContent() {
+  const { userId, isLoaded } = useAuth();
   const router = useRouter();
-  const { userId } = useAuth(); // <--- FIXED: Added userId retrieval
+  const searchParams = useSearchParams();
+  
+  // URL PARAMS
+  const currentTab = searchParams.get("tab") || "dashboard"; 
+  const searchQuery = searchParams.get("search")?.toLowerCase() || "";
+  
+  // STATE
+  const [activeSection, setActiveSection] = useState<"all" | "starred" | "trash">("all");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [loading, setLoading] = useState(false);
 
-  // Store answers. Initialize 'features' as an array for multi-select.
-  const [answers, setAnswers] = useState<{ type: string; style: string; features: string[] }>({
-    type: "",
-    style: "",
-    features: ["Hero Section", "Footer"] // Default selections
-  });
-
-  const currentStep = WIZARD_STEPS[currentStepIndex];
-
-  // --- HANDLERS ---
-
-  const handleSelection = (value: string) => {
-    if (currentStep.multi) {
-      setAnswers(prev => {
-        const exists = prev.features.includes(value);
-        return {
-          ...prev,
-          features: exists 
-            ? prev.features.filter(f => f !== value) 
-            : [...prev.features, value]
-        };
-      });
-    } else {
-      setAnswers(prev => ({ ...prev, [currentStep.id]: value }));
+  // Initial Load
+  useEffect(() => {
+    if (isLoaded && userId) {
+      loadProjects();
     }
-  };
+  }, [isLoaded, userId, activeSection]);
 
-  const handleNext = () => {
-    if (currentStepIndex < WIZARD_STEPS.length - 1) {
-      setCurrentStepIndex(prev => prev + 1);
-    } else {
-      finishWizard();
-    }
-  };
-
-  const finishWizard = async () => {
+  async function loadProjects() {
     setLoading(true);
-
-    // 1. CONSTRUCT THE MASTER PROMPT
-    const finalPrompt = `Create a ${answers.style} website for a ${answers.type}. 
-    The design should be fully responsive and use Tailwind CSS.
-    It MUST include the following sections: ${answers.features.join(", ")}.
-    Use placeholder images from Unsplash where appropriate. 
-    Ensure the code is written in a single HTML file with embedded CSS/JS.`;
-
     try {
-      // 2. CREATE DATABASE ENTRY
-      // <--- FIXED: Passed userId! as first argument
-      const newChatId = await createChat(userId!, `${answers.type} Project`) || Date.now(); 
-
-      // 3. REDIRECT TO EDITOR (Editor will read URL and start AI)
-      router.push(`/editor/${newChatId}?initialPrompt=${encodeURIComponent(finalPrompt)}`);
-      
+      const data = await getUserChats(userId!, activeSection === "starred" ? "starred" : activeSection === "trash" ? "trash" : "all");
+      // @ts-ignore
+      setProjects(data);
     } catch (error) {
-      console.error("Error creating project:", error);
+      console.error("Failed to load projects", error);
+    } finally {
       setLoading(false);
     }
+  }
+
+  const filteredProjects = projects.filter(p => p.title.toLowerCase().includes(searchQuery));
+
+  // ✅ UPGRADED SMART TEMPLATE HANDLER
+  const handleCreateFromTemplate = async (template: any) => {
+    const htmlContent = template.html || template.code;
+    
+    if (htmlContent && htmlContent.length > 50 && htmlContent.includes('<div')) {
+      const chat = await createChat(userId!, template.name, htmlContent);
+      router.push(`/editor/${chat.id}?chatId=${chat.id}`);
+    } else {
+      const loadingUi = `
+        <div class="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white font-sans">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-6"></div>
+            <h2 class="text-3xl font-bold tracking-tight mb-2">${template.name || "New Template"}</h2>
+            <p class="text-slate-400 max-w-md text-center">Architecture initialized. Please click Send in the chat to generate this design.</p>
+        </div>
+      `;
+      
+      const chat = await createChat(userId!, template.name, loadingUi);
+      
+      const promptText = `Generate a complete HTML UI for a "${template.name}". Description: ${template.description}. Make it beautiful, modern, fully responsive, and use Tailwind CSS.`;
+      
+      await saveMessage(chat.id, "ai", `Template initialized! I have pre-filled the requirements for you. Just click 'Send' below to generate your ${template.name}.`);
+      
+      router.push(`/editor/${chat.id}?chatId=${chat.id}&prompt=${encodeURIComponent(promptText)}`);
+    }
   };
 
-  // --- RENDER ---
+  const handleRename = async (id: number) => {
+    const newTitle = prompt("Enter new project name:");
+    if (newTitle) {
+      await renameChat(id, newTitle);
+      loadProjects();
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    
+    if (activeSection === "trash") {
+      if (confirm("Permanently delete this project? This action cannot be undone.")) {
+        await permanentDeleteChat(id);
+        loadProjects();
+      }
+    } else {
+      if (confirm("Move to trash?")) {
+        await moveToTrash(id);
+        loadProjects();
+      }
+    }
+  };
+
+  const handleRestore = async (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    await restoreFromTrash(id);
+    loadProjects();
+  };
+
+  const handleStar = async (e: React.MouseEvent, p: Project) => {
+    e.stopPropagation();
+    await toggleChatStar(p.id, !p.isStarred);
+    loadProjects();
+  };
+
+  // =====================================================================
+  // --- VIEW: TEMPLATES GALLERY
+  // =====================================================================
+  if (currentTab === "templates") {
+    const categories = ["Business", "Modern", "Dashboard", "Authentication", "Blog", "Slide Show"];
+
+    return (
+        <div className="min-h-full animate-in fade-in duration-500 pb-20">
+            <div className="p-8 pb-4">
+                <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">Template Architecture</h1>
+                <p className="text-slate-400">Select a neural construct to initialize your workspace.</p>
+            </div>
+            
+            <div className="flex flex-col gap-8 mt-4">
+                {categories.map((category) => {
+                    const categoryTemplates = TEMPLATES.filter(t => t.category === category);
+                    if (categoryTemplates.length === 0) return null;
+
+                    return (
+                        <TemplateSliderRow 
+                            key={category} 
+                            title={`${category} Templates`} 
+                            templates={categoryTemplates} 
+                            onSelect={handleCreateFromTemplate}
+                        />
+                    );
+                })}
+            </div>
+        </div>
+    )
+  }
+
+  // --- VIEW: DASHBOARD (PROJECTS) ---
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center py-20 px-4">
-      
-      {/* HEADER */}
-      <div className="text-center max-w-2xl mb-12">
-        <h1 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">Your Dashboard</h1>
-        <p className="text-slate-500 text-lg">Manage your projects or start something new.</p>
-      </div>
-
-      {/* DASHBOARD CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
-        
-        {/* 1. Blank Project */}
-        <div 
-            onClick={async () => {
-                // <--- FIXED: Passed userId! as first argument
-                const id = await createChat(userId!, "Untitled Project");
-                router.push(`/editor/${id}`);
-            }}
-            className="group relative bg-white p-10 rounded-3xl shadow-sm border border-slate-200 hover:border-blue-400 hover:shadow-xl transition-all cursor-pointer flex flex-col items-center text-center gap-4"
-        >
-            <div className="h-16 w-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                <Plus className="h-8 w-8"/>
-            </div>
-            <div>
-                <h3 className="text-xl font-bold text-slate-800">Blank Canvas</h3>
-                <p className="text-sm text-slate-500 mt-2">Start from scratch manually.</p>
-            </div>
+    <div className="p-8 min-h-full">
+      <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
+        <div>
+           <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
+             Dashboard <span className="text-purple-500">.</span>
+           </h1>
+           <p className="text-slate-400">
+             {searchQuery ? `Searching for "${searchQuery}"` : "Manage your digital constructs."}
+           </p>
         </div>
 
-        {/* 2. AI Template Wizard */}
-        <div 
-            onClick={() => setIsWizardOpen(true)}
-            className="group relative bg-gradient-to-br from-indigo-600 to-purple-600 p-10 rounded-3xl shadow-lg hover:shadow-2xl hover:shadow-purple-500/30 transition-all cursor-pointer flex flex-col items-center text-center gap-4 text-white overflow-hidden"
-        >
-            <div className="absolute top-0 left-0 w-full h-full bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div className="h-16 w-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform shadow-inner">
-                <Wand2 className="h-8 w-8 text-white"/>
-            </div>
-            <div className="relative z-10">
-                <h3 className="text-xl font-bold">AI Templates</h3>
-                <p className="text-white/80 mt-2">Answer questions & generate a full site.</p>
-            </div>
-        </div>
-      </div>
-
-      {/* --- WIZARD OVERLAY --- */}
-      {isWizardOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                
-                {/* Wizard Header */}
-                <div className="p-6 border-b bg-slate-50 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center"><Sparkles className="h-4 w-4"/></div>
-                        <div>
-                            <h2 className="font-bold text-slate-800">Template Wizard</h2>
-                            <p className="text-xs text-slate-500">Step {currentStepIndex + 1} of {WIZARD_STEPS.length}</p>
-                        </div>
-                    </div>
-                    <button onClick={() => setIsWizardOpen(false)} className="text-slate-400 hover:text-red-500 transition-colors"><X className="w-5 h-5"/></button>
-                </div>
-
-                {/* Wizard Content */}
-                <div className="p-8 flex-1 overflow-y-auto">
-                    <div className="text-center mb-8">
-                        <h3 className="text-2xl font-bold text-slate-900 mb-2">{currentStep.title}</h3>
-                        <p className="text-slate-500">{currentStep.subtitle}</p>
-                    </div>
-                    
-                    <div className={currentStep.id === 'features' ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
-                        {currentStep.options.map((opt) => {
-                            // Determine selection state
-                            // @ts-ignore
-                            const isSelected = currentStep.multi ? answers.features.includes(opt.value) : answers[currentStep.id] === opt.value;
-
-                            return (
-                                <div 
-                                    key={opt.value} 
-                                    onClick={() => handleSelection(opt.value)}
-                                    className={`
-                                        relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 flex flex-col gap-2 text-left group
-                                        ${isSelected ? 'border-purple-600 bg-purple-50 ring-1 ring-purple-500' : 'border-slate-100 hover:border-purple-200 hover:bg-slate-50'}
-                                    `}
-                                >
-                                    <div className="flex justify-between items-start w-full">
-                                        {/* Icon (if exists) or Checkbox (if multi) */}
-                                        <div className={`transition-colors ${isSelected ? "text-purple-600" : "text-slate-400 group-hover:text-slate-600"}`}>
-                                            {/* @ts-ignore */}
-                                            {opt.icon ? opt.icon : (
-                                                <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white'}`}>
-                                                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
-                                                </div>
-                                            )}
-                                        </div>
-                                        {/* Checkmark for Single Select */}
-                                        {!currentStep.multi && isSelected && <CheckCircle2 className="w-5 h-5 text-purple-600" />}
-                                    </div>
-                                    
-                                    <div>
-                                        <span className={`block font-bold ${isSelected ? 'text-purple-900' : 'text-slate-800'}`}>{opt.label}</span>
-                                        <p className="text-xs text-slate-500 mt-1">{opt.desc}</p>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* Wizard Footer */}
-                <div className="p-6 border-t bg-slate-50 flex justify-between items-center">
-                    {currentStepIndex > 0 ? (
-                        <Button variant="ghost" onClick={() => setCurrentStepIndex(s => s - 1)}>Back</Button>
-                    ) : (
-                        <div/> 
+        <div className="bg-white/5 border border-white/10 p-1 rounded-full flex gap-1 backdrop-blur-md">
+            {["all", "starred", "trash"].map((tab) => (
+                <button
+                    key={tab}
+                    onClick={() => setActiveSection(tab as any)}
+                    className={cn(
+                        "px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 capitalize",
+                        activeSection === tab 
+                            ? "bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.5)]" 
+                            : "text-slate-400 hover:text-white hover:bg-white/5"
                     )}
+                >
+                    {tab}
+                </button>
+            ))}
+        </div>
+      </div>
 
-                    <div className="flex gap-2">
-                        {/* Dots Indicator */}
-                        <div className="flex gap-1 mr-4 items-center">
-                            {WIZARD_STEPS.map((_, idx) => (
-                                <div key={idx} className={`h-1.5 rounded-full transition-all ${idx === currentStepIndex ? 'w-4 bg-purple-600' : 'w-1.5 bg-slate-300'}`} />
-                            ))}
+      {loading ? (
+        <div className="h-64 flex items-center justify-center">
+             <div className="flex flex-col items-center gap-4">
+                 <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+                 <span className="text-slate-500 font-mono text-xs animate-pulse">SYNCING_DATA_SLATES...</span>
+             </div>
+        </div>
+      ) : (
+        <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            initial="hidden"
+            animate="show"
+            variants={{
+                hidden: { opacity: 0 },
+                show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+            }}
+        >
+             {activeSection === 'all' && !searchQuery && (
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                    <div 
+                        onClick={() => setIsWizardOpen(true)}
+                        className="group relative h-[300px] rounded-3xl border border-dashed border-white/20 hover:border-purple-500/50 bg-white/5 hover:bg-purple-500/10 transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden"
+                    >
+                        <div className="h-16 w-16 rounded-full bg-white/5 group-hover:bg-purple-500 group-hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] flex items-center justify-center transition-all duration-500 z-10">
+                            <Plus className="w-8 h-8 text-slate-300 group-hover:text-white" />
                         </div>
-
-                        <Button 
-                            onClick={handleNext} 
-                            // Disable if nothing selected (unless multi-select which has defaults)
-                            // @ts-ignore
-                            disabled={loading || (!currentStep.multi && !answers[currentStep.id])}
-                            className="bg-slate-900 text-white hover:bg-slate-800 px-6"
-                        >
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : null}
-                            {currentStepIndex === WIZARD_STEPS.length - 1 ? "Generate Website" : "Next Step"} 
-                            {!loading && <ArrowRight className="w-4 h-4 ml-2"/>}
-                        </Button>
+                        <span className="mt-4 font-mono text-sm text-slate-400 group-hover:text-purple-300 tracking-widest uppercase">Initialize Project</span>
+                        
+                        <div className="absolute inset-0 bg-gradient-to-t from-purple-500/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     </div>
-                </div>
+                </motion.div>
+             )}
 
-            </div>
+             {filteredProjects.length === 0 && searchQuery && (
+                <div className="col-span-full text-center py-20 text-slate-500">
+                    No projects found matching "{searchQuery}"
+                </div>
+             )}
+
+             {filteredProjects.map((project) => (
+                <ProjectCard 
+                    key={project.id} 
+                    project={project} 
+                    isTrash={activeSection === "trash"}
+                    onOpen={() => router.push(`/editor/${project.id}?chatId=${project.id}`)}
+                    onStar={(e: React.MouseEvent) => handleStar(e, project)}
+                    onRename={() => handleRename(project.id)}
+                    onDelete={(e: React.MouseEvent) => handleDelete(e, project.id)}
+                    onRestore={(e: React.MouseEvent) => handleRestore(e, project.id)}
+                />
+             ))}
+        </motion.div>
+      )}
+
+      {isWizardOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+             <div className="relative w-full max-w-4xl">
+                 <button onClick={() => setIsWizardOpen(false)} className="absolute -top-12 right-0 text-slate-400 hover:text-white">Close [ESC]</button>
+                 <TemplateWizard />
+             </div>
         </div>
       )}
     </div>
   );
+}
+
+// 2. Wrap it in Suspense and export as default!
+export default function DashboardHome() {
+  return (
+    <Suspense fallback={
+      <div className="h-full flex items-center justify-center p-8">
+        <div className="flex flex-col items-center gap-4">
+           <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+           <span className="text-slate-500 font-mono text-xs animate-pulse">LOADING_DASHBOARD...</span>
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+// --- SUB COMPONENTS ---
+
+function TemplateSliderRow({ title, templates, onSelect }: { title: string, templates: any[], onSelect: any }) {
+    return (
+        <div className="w-full relative">
+            <div className="px-8 mb-4 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white tracking-tight">{title}</h2>
+                <div className="flex gap-2">
+                    <span className="text-xs text-slate-500 font-mono hidden md:block">Scroll &rarr;</span>
+                </div>
+            </div>
+
+            <div className="flex gap-4 overflow-x-auto px-8 pb-8 snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                {templates.map((t, i) => (
+                    <motion.div 
+                        key={t.id}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: i * 0.1 }}
+                        className="min-w-[300px] md:min-w-[340px] snap-start shrink-0 group relative rounded-2xl bg-[#0A0A0A] border border-white/10 p-6 flex flex-col justify-between hover:border-purple-500/50 hover:bg-white/5 transition-all duration-300"
+                    >
+                        <div>
+                            <span className="text-[10px] font-bold tracking-widest uppercase text-purple-400 mb-3 block">
+                                {t.category}
+                            </span>
+                            <h3 className="text-xl font-bold text-white mb-2">{t.name}</h3>
+                            <p className="text-sm text-slate-400 leading-relaxed mb-6">{t.description}</p>
+                        </div>
+                        
+                        <Button 
+                            onClick={() => onSelect(t)}
+                            className="w-full bg-black border border-white/10 hover:border-purple-500 hover:bg-purple-500/10 hover:text-purple-400 transition-all text-white font-medium group-hover:shadow-[0_0_15px_rgba(168,85,247,0.3)]"
+                        >
+                            Initialize <ArrowRight className="w-4 h-4 ml-2 opacity-50 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
+                        </Button>
+                    </motion.div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function ProjectCard({ project, isTrash, onOpen, onStar, onRename, onDelete, onRestore }: any) {
+    return (
+        <motion.div 
+            variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
+            onClick={onOpen}
+            className="group relative h-[300px] rounded-3xl bg-[#0A0A0A] border border-white/10 hover:border-purple-500/50 transition-all duration-500 cursor-pointer overflow-hidden shadow-2xl hover:shadow-[0_0_30px_-10px_rgba(124,58,237,0.3)]"
+        >
+            <div className="h-[65%] w-full bg-black relative overflow-hidden group-hover:opacity-100 transition-opacity">
+                 {project.previewHtml ? (
+                    <div className="w-[400%] h-[400%] transform scale-[0.25] origin-top-left pointer-events-none select-none opacity-50 group-hover:opacity-100 transition-opacity duration-500 filter grayscale group-hover:grayscale-0">
+                         <iframe 
+                            srcDoc={project.previewHtml} 
+                            className="w-full h-full border-none bg-white"
+                            tabIndex={-1}
+                         />
+                    </div>
+                 ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-white/5">
+                        <Layout className="w-10 h-10 text-white/20 mb-2" />
+                        <span className="text-[10px] font-mono text-white/20">NO_PREVIEW_DATA</span>
+                    </div>
+                 )}
+                 <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent opacity-80" />
+            </div>
+
+            <div className="absolute bottom-0 w-full p-5 flex flex-col gap-1 z-20 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A] to-transparent">
+                 <div className="flex justify-between items-start">
+                     <div>
+                        <h3 className="text-white font-bold truncate max-w-[180px] group-hover:text-purple-400 transition-colors">
+                            {project.title}
+                        </h3>
+                        <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {new Date(project.createdAt).toLocaleDateString()}
+                        </span>
+                     </div>
+                     <button 
+                        onClick={onStar}
+                        className="text-slate-600 hover:text-yellow-400 transition-colors"
+                     >
+                        <Star className={cn("w-4 h-4", project.isStarred && "fill-yellow-400 text-yellow-400")} />
+                     </button>
+                 </div>
+                 
+                 <div className="h-0 group-hover:h-8 transition-all duration-300 overflow-hidden flex items-center gap-2 mt-2">
+                     {!isTrash ? (
+                         <>
+                             <Button size="sm" variant="ghost" className="h-6 text-[10px] text-slate-400 hover:text-white px-0" onClick={(e) => { e.stopPropagation(); onRename(); }}>
+                                <Pencil className="w-3 h-3 mr-1" /> Rename
+                             </Button>
+                             <div className="h-3 w-px bg-white/10" />
+                         </>
+                     ) : (
+                         <>
+                             <Button size="sm" variant="ghost" className="h-6 text-[10px] text-emerald-500 hover:text-emerald-400 px-0" onClick={onRestore}>
+                                <RotateCcw className="w-3 h-3 mr-1" /> Restore
+                             </Button>
+                             <div className="h-3 w-px bg-white/10" />
+                         </>
+                     )}
+                     
+                     <Button size="sm" variant="ghost" className="h-6 text-[10px] text-red-900 hover:text-red-500 px-0" onClick={onDelete}>
+                        <Trash2 className="w-3 h-3 mr-1" /> {isTrash ? "Delete Forever" : "Trash"}
+                     </Button>
+                 </div>
+            </div>
+
+            <div className="absolute inset-0 border border-transparent rounded-3xl pointer-events-none">
+                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent opacity-0 group-hover:opacity-100 animate-pulse transition-opacity" />
+            </div>
+        </motion.div>
+    );
 }

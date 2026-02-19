@@ -1,62 +1,126 @@
-import { Plus, LayoutDashboard } from "lucide-react";
+"use client";
+
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useAuth, useUser } from "@clerk/nextjs";
+import { 
+  LayoutDashboard, 
+  Plus, 
+  Settings, 
+  Library, 
+  ChevronsLeft,
+  Zap,
+  Activity
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { createChat } from "@/app/actions";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { getUserChats, createChat } from "@/app/actions"; // ✅ CORRECTED IMPORT
-import { ChatItem } from "../chat-item";
-import { currentUser } from "@clerk/nextjs/server"; // ✅ NEEDED FOR USER ID
+import { useState } from "react";
 
-export async function AppSidebar() {
-  // 1. Get the authenticated user
-  const user = await currentUser();
+export function AppSidebar() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { userId } = useAuth();
+  const { user } = useUser();
+  const [loading, setLoading] = useState(false);
 
-  // 2. Handle logged out state (optional, but good practice)
-  if (!user) return null; 
+  // Get current tab from URL
+  const currentTab = searchParams.get("tab");
 
-  // 3. Fetch chats for THIS user
-  const chatList = await getUserChats(user.id);
+  // ✅ Client-Side Project Creation
+  const handleCreateNew = async () => {
+    if (!userId) return;
+    setLoading(true);
+    try {
+      const chat = await createChat(userId, "Untitled Project");
+      // ✅ FIXED BUG: Added ?chatId= param to match the editor's requirement
+      router.push(`/editor/${chat.id}?chatId=${chat.id}`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const menuItems = [
+    { label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" />, href: "/dashboard" },
+    { label: "Templates", icon: <Library className="w-4 h-4" />, href: "/dashboard?tab=templates" },
+    { label: "Statistics", icon: <Activity className="w-4 h-4" />, href: "/dashboard/statistics" },
+    { label: "Settings", icon: <Settings className="w-4 h-4" />, href: "/dashboard/settings" },
+  ];
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r bg-slate-50/50 pb-4">
-      <div className="flex h-14 items-center border-b px-4">
-        <Link href="/dashboard" className="flex items-center gap-2 font-bold text-lg">
-          <LayoutDashboard className="h-5 w-5 text-blue-600" />
-          <span>Aura Builder</span>
-        </Link>
-      </div>
-
-      <div className="p-4">
-        {/* ✅ Server Action wrapper to pass User ID */}
-        <form
-          action={async () => {
-            "use server";
-            if (!user) return;
-            // createChat now requires (userId, title)
-            await createChat(user.id, "New Project"); 
-          }}
-        >
-          <Button className="w-full justify-start gap-2" variant="default">
-             <Plus className="h-4 w-4" />
-             New Project
-          </Button>
-        </form>
-      </div>
+    <div className="h-full w-64 flex flex-col justify-between p-4 text-white">
       
-      <Separator />
-
-      <div className="flex-1 overflow-auto py-2">
-        <div className="px-4 text-xs font-semibold text-muted-foreground mb-2">
-          Your Projects
+      {/* 1. BRAND HEADER */}
+      <div className="mb-8 px-2 flex items-center gap-2">
+        <div className="h-8 w-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.5)]">
+            <Zap className="h-5 w-5 text-white fill-white" />
         </div>
-        <nav className="grid gap-1 px-2">
-          {chatList.map((chat) => (
-             // @ts-ignore - Ignores strict type check on the chat object shape if needed
-             <ChatItem key={chat.id} chat={chat} />
-          ))}
-          {chatList.length === 0 && (
-            <p className="px-2 text-xs text-muted-foreground">No projects yet.</p>
-          )}
-        </nav>
+        <span className="font-bold text-lg tracking-tight">AuraBuilder</span>
+      </div>
+
+      {/* 2. MAIN ACTIONS */}
+      <div className="space-y-6 flex-1">
+        
+        {/* CREATE BUTTON */}
+        <Button 
+            onClick={handleCreateNew} 
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 border-0 shadow-[0_0_20px_-5px_rgba(124,58,237,0.5)] transition-all hover:scale-[1.02]"
+        >
+           <Plus className="mr-2 h-4 w-4" /> 
+           {loading ? "Initializing..." : "New Project"}
+        </Button>
+
+        {/* NAVIGATION LINKS */}
+        <div className="space-y-1">
+            {menuItems.map((item) => {
+                const isDashboard = item.href === "/dashboard" && pathname === "/dashboard" && !currentTab;
+                const isTabMatch = currentTab && item.href.includes(`tab=${currentTab}`);
+                const isExactMatch = pathname === item.href && !item.href.includes('?');
+                const isActive = isDashboard || isTabMatch || isExactMatch;
+
+                return (
+                    <Link key={item.href} href={item.href}>
+                        <div className={cn(
+                            "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer",
+                            isActive 
+                                ? "bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.1)] border border-white/5" 
+                                : "text-slate-400 hover:text-white hover:bg-white/5"
+                        )}>
+                            <span className={cn(
+                                "transition-colors", 
+                                isActive ? "text-purple-400" : "text-slate-500 group-hover:text-purple-400"
+                            )}>
+                                {item.icon}
+                            </span>
+                            {item.label}
+                            
+                            {/* Hover Glow */}
+                            {isActive && (
+                                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_5px_#a855f7]" />
+                            )}
+                        </div>
+                    </Link>
+                );
+            })}
+        </div>
+      </div>
+
+      {/* 3. FOOTER / USER MINI-PROFILE */}
+      <div className="mt-auto pt-6 border-t border-white/10">
+         <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center gap-3">
+             <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center text-xs font-bold">
+                 {user?.firstName?.charAt(0) || "U"}
+             </div>
+             <div className="flex-1 overflow-hidden">
+                 <p className="text-xs font-bold truncate text-slate-200">{user?.fullName || "User"}</p>
+                 <p className="text-[10px] text-slate-500 truncate">Pro Plan</p>
+             </div>
+             <ChevronsLeft className="w-4 h-4 text-slate-600 cursor-not-allowed" />
+         </div>
       </div>
     </div>
   );

@@ -32,7 +32,7 @@ interface ProjectFile {
   type: string;
 }
 
-// 櫨 Pre-generated Google Fonts URL
+// 🎨 Pre-generated Google Fonts URL
 const ALL_FONTS_URL = "https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Bangers&family=Caveat&family=Cinzel&family=Dancing+Script&family=Fredoka+One&family=Inter:wght@300;400;600;700&family=Lato:wght@300;400;700&family=Lobster&family=Merriweather:wght@300;400;700&family=Montserrat:wght@300;400;600;700&family=Nunito:wght@300;400;700&family=Open+Sans:wght@300;400;600;700&family=Oswald:wght@300;400;700&family=Pacifico&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Poppins:wght@300;400;600;700&family=Prata&family=Raleway:wght@300;400;700&family=Righteous&family=Roboto:wght@300;400;500;700&family=Shadows+Into+Light&family=Space+Grotesk:wght@300;400;700&family=Space+Mono&family=Syne:wght@400;700&family=Ubuntu:wght@300;400;700&family=VT323&display=swap";
 
 export default function EditorPage() {
@@ -49,19 +49,20 @@ export default function EditorPage() {
   const [messages, setMessages] = useState<{ role: "user" | "ai"; content: string }[]>([
     { role: "ai", content: "Hi! I am Aura. Ready to build." }
   ]);
-  const [prompt, setPrompt] = useState("");
+  // ✅ PULLS THE AI PROMPT FROM THE URL
+  const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [loading, setLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [view, setView] = useState<"preview" | "code">("preview");
   
-  // 櫨 EDITOR STATE
+  // 🎨 EDITOR STATE
   const [isEditMode, setIsEditMode] = useState(false);
   const [editState, setEditState] = useState<"normal" | "hover">("normal");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedContent, setSelectedContent] = useState<string>("");
   const [selectedDataset, setSelectedDataset] = useState<any>({});
   
-  // 櫨 FIX: Separate Normal and Hover Styles
+  // 🎨 Normal and Hover Styles
   const [normalStyles, setNormalStyles] = useState<StyleMap>({});
   const [hoverStyles, setHoverStyles] = useState<StyleMap>({});
 
@@ -123,7 +124,6 @@ export default function EditorPage() {
     iframeRef.current?.contentWindow?.postMessage({ type: "DELETE_SELECTED" }, "*");
   };
 
-  // 🔥 EXPORT: Download Active File
   const handleDownloadCurrent = () => {
     const currentContent = files.find(f => f.name === activeFile)?.content;
     if (!currentContent) return;
@@ -136,7 +136,6 @@ export default function EditorPage() {
     document.body.removeChild(element);
   };
 
-  // 🔥 EXPORT: Download All Files as ZIP
   const handleDownloadZip = async () => {
     if (files.length === 0) return;
     const zip = new JSZip();
@@ -154,22 +153,13 @@ export default function EditorPage() {
     document.body.removeChild(element);
   };
 
-  // 🔥 Handle complex interactions like updating Image Src or adding slides
   const handleAction = (action: string, value?: string) => {
     if (!iframeRef.current?.contentWindow) return;
-
     if (action === 'UPDATE_SRC') {
-        iframeRef.current.contentWindow.postMessage({ 
-            type: 'UPDATE_ATTR', 
-            attribute: 'src', 
-            value: value 
-        }, "*");
+        iframeRef.current.contentWindow.postMessage({ type: 'UPDATE_ATTR', attribute: 'src', value: value }, "*");
     }
-
     if (action === 'ADD_SLIDE') {
-        iframeRef.current.contentWindow.postMessage({ 
-            type: 'DUPLICATE_CHILD' 
-        }, "*");
+        iframeRef.current.contentWindow.postMessage({ type: 'DUPLICATE_CHILD' }, "*");
     }
   };
 
@@ -202,7 +192,7 @@ export default function EditorPage() {
         doc = doc.replace('<html>', `<html><head>${fontLink}</head>`);
     }
 
-    // 2. Inject Styles & Keyframes & JS Logic
+    // 2. Inject Styles & JS Logic
     const scriptInjection = `
         <style>
             /* Editor UI Styles */
@@ -211,27 +201,12 @@ export default function EditorPage() {
             body.edit-mode *:hover { outline: 1px dashed #94a3b8; cursor: pointer; }
             *[contenteditable="true"] { outline: 2px dashed #22c55e !important; cursor: text !important; }
             
-            /* Scrollbar & Smooth Scroll */
             ::-webkit-scrollbar { width: 8px; }
             ::-webkit-scrollbar-track { bg: transparent; }
             ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
             ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
             html { scroll-behavior: smooth; }
             body { perspective: 1000px; }
-
-            /* ANIMATION KEYFRAMES */
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-            @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-            @keyframes slideLeft { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-            @keyframes slideRight { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-            @keyframes zoomIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-            @keyframes wiggle { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
-            @keyframes bounce { 0%, 100% { transform: translateY(-25%); } 50% { transform: translateY(0); } }
-            @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-            @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-            @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-            @keyframes flip { 0% { transform: perspective(400px) rotateY(90deg); opacity: 0; } 100% { transform: perspective(400px) rotateY(0deg); opacity: 1; } }
         </style>
         <script id="aura-editor-script">
             window.isEditMode = ${isEditMode}; 
@@ -244,10 +219,9 @@ export default function EditorPage() {
                 const script = docClone.querySelector('#aura-editor-script');
                 if (script) script.remove();
                 
-                // Remove Editor-only styles
                 const styles = docClone.querySelectorAll('style');
                 styles.forEach(s => {
-                    if (s.id !== 'aura-hover-styles' && (s.innerHTML.includes('aura-editor') || s.innerHTML.includes('data-selected') || s.innerHTML.includes('@keyframes'))) {
+                    if (s.id !== 'aura-hover-styles' && (s.innerHTML.includes('aura-editor') || s.innerHTML.includes('data-selected'))) {
                          s.remove();
                     }
                 });
@@ -266,18 +240,51 @@ export default function EditorPage() {
                 return "<!DOCTYPE html>" + docClone.outerHTML;
             }
 
-            // --- CLICK HANDLER ---
+            // --- SMART CLICK HANDLER ---
             window.addEventListener('click', (e) => {
                 const link = e.target.closest('a');
-                if (link) {
+                
+                // 1. If in Edit Mode, prevent navigation completely so user can click to style the link
+                if (window.isEditMode) {
+                    if (link) e.preventDefault();
+                    // Let the selection logic below handle it...
+                } 
+                // 2. If in Preview Mode, handle smart navigation
+                else if (link) {
                     const href = link.getAttribute('href');
-                    if (href && !href.startsWith('#')) {
-                        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-                        window.parent.postMessage({ type: 'LINK_CLICKED', href }, '*');
+                    if (href) {
+                        // 🔥 FIX: ALWAYS prevent default iframe navigation to stop crashes
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                        e.stopImmediatePropagation();
+                        
+                        // 🔥 FIX: Manual Smooth Scrolling for Hash Links
+                        if (href.startsWith('#')) {
+                            if (href === '#') {
+                                // Scroll to top
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            } else {
+                                // Find element and scroll to it
+                                const targetId = href.substring(1);
+                                const targetEl = document.getElementById(targetId);
+                                if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
+                            }
+                            return; // Stop here!
+                        }
+                        
+                        // Let external links open in a new tab
+                        if (href.startsWith('http') || href.startsWith('mailto:')) {
+                            window.open(href, '_blank');
+                            return;
+                        }
+                        
+                        // Send internal route to React Parent (e.g. "stats.html")
+                        window.parent.postMessage({ type: 'AURA_NAVIGATE', target: href }, '*');
                         return;
                     }
                 }
 
+                // --- ELEMENT SELECTION LOGIC (Only in Edit Mode) ---
                 if (!window.isEditMode) return;
                 if (e.target.isContentEditable) return;
                 e.preventDefault(); e.stopPropagation();
@@ -294,7 +301,6 @@ export default function EditorPage() {
                 const inline = el.style;
                 const getVal = (prop) => inline[prop] || computed[prop];
 
-                // 🔥 Collect dataset for smart detection
                 const dataset = {};
                 for (const key in el.dataset) {
                     dataset[key] = el.dataset[key];
@@ -313,12 +319,6 @@ export default function EditorPage() {
                         boxShadow: getVal('boxShadow'), backdropFilter: getVal('backdropFilter'),
                         textAlign: getVal('textAlign'), position: getVal('position'), zIndex: getVal('zIndex'),
                         flexDirection: getVal('flexDirection'), justifyContent: getVal('justifyContent'), alignItems: getVal('alignItems'), gap: getVal('gap'),
-                        
-                        animationName: inline.animationName || computed.animationName,
-                        animationDuration: inline.animationDuration || computed.animationDuration,
-                        animationDelay: inline.animationDelay || computed.animationDelay,
-                        animationTimingFunction: inline.animationTimingFunction || computed.animationTimingFunction,
-                        animationIterationCount: inline.animationIterationCount || computed.animationIterationCount,
                         
                         transform: inline.transform || computed.transform, 
                         transition: inline.transition || computed.transition,
@@ -397,16 +397,6 @@ export default function EditorPage() {
                   window.selectedElement.setAttribute(data.attribute, data.value);
                   window.parent.postMessage({ type: 'HTML_UPDATE', html: getCleanHtml() }, '*');
               }
-              if (data.type === 'DUPLICATE_CHILD' && window.selectedElement) {
-                  let container = window.selectedElement;
-                  if (container.children.length === 0) container = container.parentElement;
-                  if (container && container.children.length > 0) {
-                      const lastChild = container.children[container.children.length - 1];
-                      const newSlide = lastChild.cloneNode(true);
-                      container.appendChild(newSlide);
-                      window.parent.postMessage({ type: 'HTML_UPDATE', html: getCleanHtml() }, '*');
-                  }
-              }
             });
         </script>
     `;
@@ -440,13 +430,12 @@ export default function EditorPage() {
           updateFileContent(activeFile, e.data.html);
       }
       
-      // 櫨 FIX: Separate normal styles and reset hover overrides on new selection
       if (e.data.type === 'ELEMENT_SELECTED') {
         setSelectedTag(e.data.tagName);
         setSelectedContent(e.data.content || "");
-        setSelectedDataset(e.data.dataset || {}); // Store dataset for smart detection
+        setSelectedDataset(e.data.dataset || {}); 
         setNormalStyles(e.data.normalStyles);
-        setHoverStyles({}); // Start with fresh hover state for new element
+        setHoverStyles({}); 
       }
       
       if (e.data.type === 'DESELECTED') {
@@ -456,16 +445,23 @@ export default function EditorPage() {
         setSelectedDataset({});
       }
 
-      if (e.data.type === 'LINK_CLICKED') {
-          const href = e.data.href;
-          const targetName = href.replace(/^\.?\//, ''); 
+      // ✅ SMART ROUTING LISTENER
+      if (e.data.type === 'AURA_NAVIGATE') {
+          let requestedFile = e.data.target.replace(/^\.?\//, ''); // Clean leading / or ./
           
-          const targetFile = files.find(f => f.name === targetName || f.name === href);
+          if (!requestedFile.endsWith('.html') && !requestedFile.includes('.')) {
+              requestedFile += '.html';
+          }
+          
+          const targetFile = files.find(f => f.name === requestedFile);
           
           if (targetFile) {
               setActiveFile(targetFile.name); 
           } else {
-              alert(`Page "${targetName}" does not exist for navigation, kindly create the page.`);
+              const wantsToCreate = window.confirm(`The page "${requestedFile}" does not exist. Would you like to create it now?`);
+              if (wantsToCreate) {
+                  createNewPage(requestedFile);
+              }
           }
       }
     };
@@ -492,15 +488,27 @@ export default function EditorPage() {
     setLoading(false);
   }
 
-  const createNewPage = () => {
-    const name = window.prompt("Enter file name (e.g., about.html)");
-    if (name && !files.find(f => f.name === name)) {
-        const newFile = { name, type: "html", content: '<h1 class="text-2xl font-bold p-10">New Page</h1>' };
+  const createNewPage = (suggestedName?: string) => {
+    const defaultName = typeof suggestedName === 'string' ? suggestedName : "";
+    let name = defaultName || window.prompt("Enter file name (e.g., about.html)");
+    
+    if (!name) return;
+    if (!name.endsWith('.html')) name += '.html';
+    
+    if (!files.find(f => f.name === name)) {
+        const cleanTitle = name.replace('.html', '').charAt(0).toUpperCase() + name.replace('.html', '').slice(1);
+        const newFile = { 
+            name, 
+            type: "html", 
+            content: `<div class="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-10 text-center"><h1 class="text-5xl font-black text-slate-800 mb-4">${cleanTitle}</h1><p class="text-slate-500 max-w-md mx-auto">This page was automatically generated. Start building your layout or ask the AI to design it for you.</p></div>` 
+        };
         const newFiles = [...files, newFile];
         setFiles(newFiles);
         if(chatId) saveFile(chatId, name, newFile.content, newFile.type);
         setActiveFile(name); 
         forceReloadIframe(); 
+    } else {
+        setActiveFile(name);
     }
   };
 
@@ -561,14 +569,14 @@ export default function EditorPage() {
       {/* LEFT SIDEBAR */}
       <div className="w-[300px] flex flex-col border-r bg-white h-full shrink-0">
         <div className="p-4 border-b bg-slate-50 shrink-0 flex items-center gap-2">
-            <Link href="/" className="p-2 hover:bg-slate-200 rounded-lg transition"><ArrowLeft className="h-4 w-4 text-slate-600"/></Link>
+            <Link href="/dashboard" className="p-2 hover:bg-slate-200 rounded-lg transition"><ArrowLeft className="h-4 w-4 text-slate-600"/></Link>
             <span className="font-bold text-sm text-slate-700">Editor</span>
         </div>
 
         <div className="p-4 border-b bg-slate-50 shrink-0">
             <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pages</span>
-                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={createNewPage}><Plus className="h-4 w-4"/></Button>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => createNewPage()}><Plus className="h-4 w-4"/></Button>
             </div>
             <div className="space-y-1">
                 {files.map(f => (
@@ -623,7 +631,6 @@ export default function EditorPage() {
             </div>
 
             <div className="flex items-center gap-2">
-                {/* 櫨 EXPORT DROPDOWN */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button size="sm" variant="outline" className="text-xs h-8 gap-2 hover:bg-slate-50">
@@ -670,7 +677,7 @@ export default function EditorPage() {
                                 ref={iframeRef} 
                                 className="w-full h-full border-none block" 
                                 srcDoc={iframeSource} 
-                                sandbox="allow-scripts allow-same-origin" 
+                                sandbox="allow-scripts allow-same-origin allow-popups" 
                                 title="Preview"
                             />
                         </div>
@@ -682,7 +689,7 @@ export default function EditorPage() {
                             value={files.find(f => f.name === activeFile)?.content || ""} 
                             onChange={(e) => {
                                 updateFileContent(activeFile, e.target.value);
-                                forceReloadIframe(); // Reload on Code Edit
+                                forceReloadIframe(); 
                             }} 
                             spellCheck={false} 
                         />
@@ -693,7 +700,6 @@ export default function EditorPage() {
             <PropertiesPanel 
                 isEditMode={isEditMode && view === 'preview'} 
                 selectedTag={selectedTag}
-                // 櫨 FIX: Merge logic: If Hover, show Normal merged with Hover Overrides
                 selectedStyles={editState === 'normal' ? normalStyles : { ...normalStyles, ...hoverStyles }}
                 selectedContent={selectedContent}
                 editState={editState}
