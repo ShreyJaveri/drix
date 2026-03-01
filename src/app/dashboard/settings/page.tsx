@@ -56,7 +56,7 @@ function SettingsContent() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `aura_workspace_backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `drix_workspace_backup_${new Date().toISOString().split('T')[0]}.json`;
       
       // 4. Trigger download and clean up
       document.body.appendChild(a);

@@ -102,7 +102,7 @@ export default function DashboardLayout({
                     <div className="flex gap-3 items-start p-2 hover:bg-white/5 rounded-lg transition-colors cursor-default">
                          <div className="mt-1 h-2 w-2 rounded-full bg-purple-500 shadow-[0_0_10px_#a855f7]" />
                          <div>
-                            <p className="text-xs font-medium text-slate-200">Welcome to Aura v2</p>
+                            <p className="text-xs font-medium text-slate-200">Welcome to Drix v2</p>
                             <p className="text-[10px] text-slate-500">New 3D engine enabled.</p>
                         </div>
                     </div>

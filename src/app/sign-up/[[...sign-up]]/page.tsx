@@ -22,7 +22,7 @@ export default function Page() {
             <div className="h-8 w-8 bg-purple-600 rounded-lg flex items-center justify-center text-white shadow-[0_0_15px_rgba(147,51,234,0.5)]">
                <Wand2 className="h-5 w-5" />
             </div>
-            <span>AuraBuilder</span>
+            <span>Drix</span>
           </Link>
         </div>
 
@@ -31,12 +31,12 @@ export default function Page() {
              Create something <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">extraordinary.</span>
            </h1>
            <p className="text-slate-400 text-lg">
-             Join thousands of creators using Aura Builder to turn ideas into production-ready code in seconds.
+             Join thousands of creators using Drix to turn ideas into production-ready code in seconds.
            </p>
         </div>
 
         <div className="relative z-10 text-slate-500 text-sm">
-          © {new Date().getFullYear()} Aura Builder Inc.
+          © {new Date().getFullYear()} Drix Inc.
         </div>
       </div>
 

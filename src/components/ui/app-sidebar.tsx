@@ -55,7 +55,7 @@ function SidebarContent() {
         <div className="h-8 w-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.5)]">
             <Zap className="h-5 w-5 text-white fill-white" />
         </div>
-        <span className="font-bold text-lg tracking-tight">AuraBuilder</span>
+        <span className="font-bold text-lg tracking-tight">Drix</span>
       </div>
 
       {/* 2. MAIN ACTIONS */}

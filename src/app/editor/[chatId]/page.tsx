@@ -47,7 +47,7 @@ function EditorContent() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const [messages, setMessages] = useState<{ role: "user" | "ai"; content: string }[]>([
-    { role: "ai", content: "Hi! I am Aura. Ready to build." }
+    { role: "ai", content: "Hi! I am Drix. Ready to build." }
   ]);
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [loading, setLoading] = useState(false);
@@ -168,19 +168,19 @@ function EditorContent() {
             html { scroll-behavior: smooth; }
             body { perspective: 1000px; }
         </style>
-        <script id="aura-editor-script">
+        <script id="drix-editor-script">
             window.isEditMode = ${isEditMode}; 
             if (window.isEditMode) document.body.classList.add('edit-mode');
             window.onbeforeunload = function(e) { e.preventDefault(); return false; };
 
             function getCleanHtml() {
                 const docClone = document.documentElement.cloneNode(true);
-                const script = docClone.querySelector('#aura-editor-script');
+                const script = docClone.querySelector('#drix-editor-script');
                 if (script) script.remove();
                 
                 const styles = docClone.querySelectorAll('style');
                 styles.forEach(s => {
-                    if (s.id !== 'aura-hover-styles' && (s.innerHTML.includes('aura-editor') || s.innerHTML.includes('data-selected'))) {
+                    if (s.id !== 'drix-hover-styles' && (s.innerHTML.includes('drix-editor') || s.innerHTML.includes('data-selected'))) {
                          s.remove();
                     }
                 });
@@ -217,7 +217,7 @@ function EditorContent() {
                             window.open(href, '_blank');
                             return;
                         }
-                        window.parent.postMessage({ type: 'AURA_NAVIGATE', target: href }, '*');
+                        window.parent.postMessage({ type: 'DRIX_NAVIGATE', target: href }, '*');
                         return;
                     }
                 }
@@ -284,12 +284,12 @@ function EditorContent() {
               }
               if (data.type === 'APPLY_STYLE' && window.selectedElement) {
                 if (data.mode === 'hover') {
-                    if (!window.selectedElement.id) window.selectedElement.id = 'aura-' + Math.random().toString(36).substr(2, 6);
+                    if (!window.selectedElement.id) window.selectedElement.id = 'drix-' + Math.random().toString(36).substr(2, 6);
                     const elId = window.selectedElement.id;
-                    let styleTag = document.getElementById('aura-hover-styles');
+                    let styleTag = document.getElementById('drix-hover-styles');
                     if (!styleTag) {
                         styleTag = document.createElement('style');
-                        styleTag.id = 'aura-hover-styles';
+                        styleTag.id = 'drix-hover-styles';
                         document.head.appendChild(styleTag);
                     }
                     const cssProp = toKebab(data.style);
@@ -351,7 +351,7 @@ function EditorContent() {
       if (e.data.type === 'DESELECTED') {
         setSelectedTag(null); setNormalStyles({}); setHoverStyles({}); setSelectedDataset({});
       }
-      if (e.data.type === 'AURA_NAVIGATE') {
+      if (e.data.type === 'DRIX_NAVIGATE') {
           let requestedFile = e.data.target.replace(/^\.?\//, ''); 
           if (!requestedFile.endsWith('.html') && !requestedFile.includes('.')) requestedFile += '.html';
           const targetFile = files.find(f => f.name === requestedFile);
@@ -491,7 +491,7 @@ function EditorContent() {
                      {m.content}
                  </div>
              ))}
-             {loading && <div className="text-xs text-slate-400 pl-2"><Loader2 className="h-3 w-3 animate-spin inline mr-2"/>Aura is coding...</div>}
+             {loading && <div className="text-xs text-slate-400 pl-2"><Loader2 className="h-3 w-3 animate-spin inline mr-2"/>Drix is coding...</div>}
              <div ref={chatEndRef} />
         </div>
 

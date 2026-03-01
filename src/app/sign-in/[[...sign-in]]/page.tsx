@@ -22,7 +22,7 @@ export default function Page() {
             <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-[0_0_15px_rgba(37,99,235,0.5)]">
                <Wand2 className="h-5 w-5" />
             </div>
-            <span>AuraBuilder</span>
+            <span>Drix</span>
           </Link>
         </div>
 
@@ -36,7 +36,7 @@ export default function Page() {
         </div>
 
         <div className="relative z-10 text-slate-500 text-sm">
-          © {new Date().getFullYear()} Aura Builder Inc.
+          © {new Date().getFullYear()} Drix Inc.
         </div>
       </div>
 

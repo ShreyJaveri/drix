@@ -148,7 +148,7 @@ const NAVBAR_LIBRARY = [
     name: "Glass Floating", 
     html: `<div class="fixed top-6 left-0 right-0 flex justify-center z-50 w-full px-4">
     <nav class="w-full max-w-3xl flex items-center justify-between px-6 py-3 bg-white/80 backdrop-blur-xl border border-white/40 rounded-full shadow-xl shadow-slate-200/50">
-        <span class="font-bold text-slate-800 mr-4">Aura</span>
+        <span class="font-bold text-slate-800 mr-4">Drix</span>
         
         <div class="hidden md:flex gap-6 text-sm font-medium text-slate-600">
             <a href="#" class="hover:text-slate-900">Home</a>
