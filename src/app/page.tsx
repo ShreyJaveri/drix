@@ -99,10 +99,12 @@ export default function LandingPage() {
                  </span>
               </button>
            </Link>
-           <Link href="https://drive.google.com/file/d/1FwDk3FS-lbS0-jcyQB92EodZq4_xMxbY/view?usp=sharing" target="_blank">
-           <button className="px-8 py-4 bg-white/5 border border-white/10 rounded-full font-medium text-lg hover:bg-white/10 backdrop-blur-md transition flex items-center gap-2 hover:border-white/30 cursor-none">
+           <Link 
+              href="https://drive.google.com/file/d/1FwDk3FS-lbS0-jcyQB92EodZq4_xMxbY/view?usp=sharing" 
+              target="_blank"
+              className="px-8 py-4 bg-white/5 border border-white/10 rounded-full font-medium text-lg hover:bg-white/10 backdrop-blur-md transition inline-flex items-center gap-2 hover:border-white/30 cursor-none"
+            >
               <Play className="w-4 h-4 fill-white" /> Watch Demo
-           </button>
            </Link>
         </motion.div>
       </section>
