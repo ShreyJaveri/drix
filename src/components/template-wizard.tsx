@@ -81,7 +81,7 @@ export function TemplateWizard() {
               value={topic} 
               onChange={(e) => setTopic(e.target.value)} 
               placeholder="e.g. Modern Coffee Shop"
-              className="text-lg p-6"
+              className="text-lg p-6 text-slate-900 bg-white border-slate-200"
             />
             <Button onClick={handleStart} size="lg" className="bg-blue-600 hover:bg-blue-700 h-full aspect-square">
               <ArrowRight />

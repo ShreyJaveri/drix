@@ -109,7 +109,7 @@ function SidebarContent() {
              </div>
              <div className="flex-1 overflow-hidden">
                  <p className="text-xs font-bold truncate text-slate-200">{user?.fullName || "User"}</p>
-                 <p className="text-[10px] text-slate-500 truncate">Pro Plan</p>
+                 <p className="text-[10px] text-slate-500 truncate">Welcome</p>
              </div>
              <ChevronsLeft className="w-4 h-4 text-slate-600 cursor-not-allowed" />
          </div>

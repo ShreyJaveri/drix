@@ -62,7 +62,7 @@ export async function getUserChats(userId: string, section: "all" | "starred" | 
 
 export async function toggleChatStar(chatId: number, currentStatus: boolean) {
   await db.update(chats).set({ isStarred: !currentStatus }).where(eq(chats.id, chatId));
-  revalidatePath("/");
+  revalidatePath("/dashboard");
 }
 
 export async function renameChat(chatId: number, newTitle: string) {

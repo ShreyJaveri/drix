@@ -28,7 +28,6 @@ interface Project {
   previewHtml?: string;
 }
 
-// 1. Renamed to DashboardContent (removed export default)
 function DashboardContent() {
   const { userId, isLoaded } = useAuth();
   const router = useRouter();
@@ -66,7 +65,6 @@ function DashboardContent() {
 
   const filteredProjects = projects.filter(p => p.title.toLowerCase().includes(searchQuery));
 
-  // ✅ UPGRADED SMART TEMPLATE HANDLER
   const handleCreateFromTemplate = async (template: any) => {
     const htmlContent = template.html || template.code;
     
@@ -101,6 +99,7 @@ function DashboardContent() {
   };
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {
+    e.preventDefault();
     e.stopPropagation();
     
     if (activeSection === "trash") {
@@ -114,18 +113,43 @@ function DashboardContent() {
         loadProjects();
       }
     }
+    router.refresh();
   };
 
   const handleRestore = async (e: React.MouseEvent, id: number) => {
+    e.preventDefault();
     e.stopPropagation();
     await restoreFromTrash(id);
     loadProjects();
+    router.refresh();
   };
 
   const handleStar = async (e: React.MouseEvent, p: Project) => {
+    e.preventDefault();
     e.stopPropagation();
-    await toggleChatStar(p.id, !p.isStarred);
-    loadProjects();
+
+    const newStarredState = !p.isStarred;
+
+    // 1. OPTIMISTIC UPDATE: Update the UI instantly
+    setProjects(currentProjects => {
+        if (activeSection === "starred" && !newStarredState) {
+            return currentProjects.filter(proj => proj.id !== p.id);
+        }
+        return currentProjects.map(proj => 
+            proj.id === p.id ? { ...proj, isStarred: newStarredState } : proj
+        );
+    });
+
+    try {
+        // 2. Fire the database action
+        await toggleChatStar(p.id, newStarredState);
+        
+        // 3. Purge the client cache so next fetch is fresh
+        router.refresh();
+    } catch (error) {
+        console.error("Failed to toggle star", error);
+        loadProjects();
+    }
   };
 
   // =====================================================================
@@ -257,7 +281,6 @@ function DashboardContent() {
   );
 }
 
-// 2. Wrap it in Suspense and export as default!
 export default function DashboardHome() {
   return (
     <Suspense fallback={
@@ -352,8 +375,13 @@ function ProjectCard({ project, isTrash, onOpen, onStar, onRename, onDelete, onR
                         </span>
                      </div>
                      <button 
-                        onClick={onStar}
-                        className="text-slate-600 hover:text-yellow-400 transition-colors"
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onStar(e);
+                        }}
+                        className="text-slate-600 hover:text-yellow-400 transition-colors relative z-10"
                      >
                         <Star className={cn("w-4 h-4", project.isStarred && "fill-yellow-400 text-yellow-400")} />
                      </button>
@@ -362,21 +390,21 @@ function ProjectCard({ project, isTrash, onOpen, onStar, onRename, onDelete, onR
                  <div className="h-0 group-hover:h-8 transition-all duration-300 overflow-hidden flex items-center gap-2 mt-2">
                      {!isTrash ? (
                          <>
-                             <Button size="sm" variant="ghost" className="h-6 text-[10px] text-slate-400 hover:text-white px-0" onClick={(e) => { e.stopPropagation(); onRename(); }}>
+                             <Button size="sm" variant="ghost" className="h-6 text-[10px] text-slate-400 hover:text-white px-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRename(); }}>
                                 <Pencil className="w-3 h-3 mr-1" /> Rename
                              </Button>
                              <div className="h-3 w-px bg-white/10" />
                          </>
                      ) : (
                          <>
-                             <Button size="sm" variant="ghost" className="h-6 text-[10px] text-emerald-500 hover:text-emerald-400 px-0" onClick={onRestore}>
+                             <Button size="sm" variant="ghost" className="h-6 text-[10px] text-emerald-500 hover:text-emerald-400 px-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRestore(e); }}>
                                 <RotateCcw className="w-3 h-3 mr-1" /> Restore
                              </Button>
                              <div className="h-3 w-px bg-white/10" />
                          </>
                      )}
                      
-                     <Button size="sm" variant="ghost" className="h-6 text-[10px] text-red-900 hover:text-red-500 px-0" onClick={onDelete}>
+                     <Button size="sm" variant="ghost" className="h-6 text-[10px] text-red-900 hover:text-red-500 px-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(e); }}>
                         <Trash2 className="w-3 h-3 mr-1" /> {isTrash ? "Delete Forever" : "Trash"}
                      </Button>
                  </div>
